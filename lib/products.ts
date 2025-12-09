@@ -1,4 +1,4 @@
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { TAGS } from '@/lib/constants';
 import { db } from '@/lib/db';
 import type {
@@ -9,7 +9,6 @@ import type {
   Money,
   Image,
   ProductVariant,
-  ProductOption,
 } from '@/lib/store/types';
 
 // Helper to transform database price to Money type
@@ -110,54 +109,50 @@ function getSortOrder(sortKey: ProductSortKey | ProductCollectionSortKey, revers
   }
 }
 
-export async function getCollections(): Promise<Collection[]> {
-  'use cache';
-  cacheTag(TAGS.collections);
-  cacheLife('minutes');
+export const getCollections = unstable_cache(
+  async (): Promise<Collection[]> => {
+    // Collections are not in the current database schema
+    // Return empty array to prevent errors
+    return [];
+  },
+  ['collections'],
+  { tags: [TAGS.collections], revalidate: 60 }
+);
 
-  // Collections are not in the current database schema
-  // Return empty array to prevent errors
-  return [];
-}
-
-export async function getCollection(handle: string): Promise<Collection | null> {
-  'use cache';
-  cacheTag(TAGS.collections);
-  cacheLife('minutes');
-
-  // Collections are not in the current database schema
-  return null;
-}
-
-export async function getProduct(handle: string): Promise<Product | null> {
-  'use cache';
-  cacheTag(TAGS.products);
-  cacheLife('minutes');
-
-  try {
-    // Since handle doesn't exist, we'll use id instead
-    const dbProduct = await db.product.findUnique({
-      where: { id: handle },
-    });
-
-    if (!dbProduct) return null;
-    return transformProduct(dbProduct);
-  } catch (error) {
-    console.error('Error fetching product:', error);
+export const getCollection = unstable_cache(
+  async (handle: string): Promise<Collection | null> => {
+    // Collections are not in the current database schema
     return null;
-  }
-}
+  },
+  ['collection'],
+  { tags: [TAGS.collections], revalidate: 60 }
+);
 
-export async function getProducts(params: {
+export const getProduct = unstable_cache(
+  async (handle: string): Promise<Product | null> => {
+    try {
+      // Since handle doesn't exist, we'll use id instead
+      const dbProduct = await db.product.findUnique({
+        where: { id: handle },
+      });
+
+      if (!dbProduct) return null;
+      return transformProduct(dbProduct);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+  },
+  ['product'],
+  { tags: [TAGS.products], revalidate: 60 }
+);
+
+async function getProductsInternal(params: {
   limit?: number;
   sortKey?: ProductSortKey;
   reverse?: boolean;
   query?: string;
 }): Promise<Product[]> {
-  'use cache';
-  cacheTag(TAGS.products);
-  cacheLife('minutes');
-
   try {
     const limit = params.limit || 24;
     const where: any = {};
@@ -184,35 +179,41 @@ export async function getProducts(params: {
   }
 }
 
-export async function getCollectionProducts(params: {
-  collection: string;
-  limit?: number;
-  sortKey?: ProductCollectionSortKey;
-  reverse?: boolean;
-  query?: string;
-}): Promise<Product[]> {
-  'use cache';
-  cacheTag(TAGS.collectionProducts);
-  cacheLife('minutes');
+export const getProducts = unstable_cache(
+  getProductsInternal,
+  ['products'],
+  { tags: [TAGS.products], revalidate: 60 }
+);
 
-  // Since collections don't exist, just return all products
-  // You can filter by collection later if you add it to the schema
-  // Map ProductCollectionSortKey to ProductSortKey
-  const sortKeyMap: Record<ProductCollectionSortKey, ProductSortKey> = {
-    'BEST_SELLING': 'BEST_SELLING',
-    'COLLECTION_DEFAULT': 'CREATED_AT',
-    'CREATED': 'CREATED_AT',
-    'ID': 'ID',
-    'MANUAL': 'CREATED_AT',
-    'PRICE': 'PRICE',
-    'RELEVANCE': 'RELEVANCE',
-    'TITLE': 'TITLE',
-  };
-  
-  return getProducts({
-    limit: params.limit,
-    sortKey: params.sortKey ? sortKeyMap[params.sortKey] : undefined,
-    reverse: params.reverse,
-    query: params.query,
-  });
-}
+export const getCollectionProducts = unstable_cache(
+  async (params: {
+    collection: string;
+    limit?: number;
+    sortKey?: ProductCollectionSortKey;
+    reverse?: boolean;
+    query?: string;
+  }): Promise<Product[]> => {
+    // Since collections don't exist, just return all products
+    // You can filter by collection later if you add it to the schema
+    // Map ProductCollectionSortKey to ProductSortKey
+    const sortKeyMap: Record<ProductCollectionSortKey, ProductSortKey> = {
+      'BEST_SELLING': 'BEST_SELLING',
+      'COLLECTION_DEFAULT': 'CREATED_AT',
+      'CREATED': 'CREATED_AT',
+      'ID': 'ID',
+      'MANUAL': 'CREATED_AT',
+      'PRICE': 'PRICE',
+      'RELEVANCE': 'RELEVANCE',
+      'TITLE': 'TITLE',
+    };
+    
+    return getProductsInternal({
+      limit: params.limit,
+      sortKey: params.sortKey ? sortKeyMap[params.sortKey] : undefined,
+      reverse: params.reverse,
+      query: params.query,
+    });
+  },
+  ['collection-products'],
+  { tags: [TAGS.collectionProducts], revalidate: 60 }
+);

@@ -1,10 +1,9 @@
 import Link from 'next/link';
-import { db } from '@/lib/db';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/store/utils';
 
-export async function ProductList({ products }: { products: any[] }) {
+export function ProductList({ products }: { products: any[] }) {
   if (products.length === 0) {
     return (
       <div className="text-center py-12">
@@ -19,22 +18,17 @@ export async function ProductList({ products }: { products: any[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {products.map((product) => {
-        const firstImage = product.images[0];
-        const minPrice = Math.min(
-          ...product.variants.map((v: any) => parseFloat(v.price.toString()))
-        );
-
         return (
           <Link
             key={product.id}
             href={`/admin/products/${product.id}`}
             className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
           >
-            {firstImage ? (
+            {product.imageUrl ? (
               <div className="aspect-square relative bg-muted">
                 <Image
-                  src={firstImage.url}
-                  alt={firstImage.altText || product.title}
+                  src={product.imageUrl}
+                  alt={product.name}
                   fill
                   className="object-cover"
                 />
@@ -45,13 +39,10 @@ export async function ProductList({ products }: { products: any[] }) {
               </div>
             )}
             <div className="p-4">
-              <h3 className="font-semibold mb-1">{product.title}</h3>
-              <p className="text-sm text-muted-foreground mb-2">
-                {product.collection?.title || 'Uncategorized'}
-              </p>
-              <p className="font-semibold">{formatPrice(minPrice.toString(), product.currencyCode)}</p>
+              <h3 className="font-semibold mb-1">{product.name}</h3>
+              <p className="font-semibold">{formatPrice(product.price.toString(), 'USD')}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
+                Stock: {product.stock}
               </p>
             </div>
           </Link>

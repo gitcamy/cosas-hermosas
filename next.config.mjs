@@ -2,7 +2,6 @@ const nextConfig = {
   /* config options here */
   experimental: {
     inlineCss: true,
-    useCache: true,
     clientSegmentCache: true,
   },
   eslint: {

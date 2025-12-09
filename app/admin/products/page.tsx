@@ -7,11 +7,6 @@ import { ProductList } from './product-list';
 
 export default async function AdminProductsPage() {
   const products = await db.product.findMany({
-    include: {
-      collection: true,
-      images: { orderBy: { order: 'asc' } },
-      variants: true,
-    },
     orderBy: { createdAt: 'desc' },
   });
 
